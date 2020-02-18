@@ -73,7 +73,7 @@ def read_regular_test_files():
             i = 0
             for test_row in xte_rows:
                 if i > 0:
-                    test_entries_k.append(test_row)
+                    test_entries_k.append(test_row[0].split(',')[1])
                 i = i + 1
 
             test_entries.append(test_entries_k)
@@ -95,10 +95,14 @@ def read_matrix_test_files():
 
     return test_entries
 
-def verify_training(x,y,weights):
+def verify_training(x,y,weights, isLa = False):
     f_train = []
     for k in range (3):
-        f_train.append(krr.test(x[k], weights[k]))
+        if not isLa:
+            f_train.append(krr.test(x[k], weights[k]))
+        else:
+            f_train.append(krr.test_la(x[k], weights[k]))
+
 
     train_res = []
     for k in range (3):
@@ -113,8 +117,8 @@ def verify_training(x,y,weights):
 
 
     y_array = np.array(y, np.int)
-    print (train_res[0])
-    print (y_array[0])
+    ##print (train_res[0])
+    ##print (y_array[0])
 
     precision = []
     for k in range(3):
@@ -125,12 +129,11 @@ def verify_training(x,y,weights):
                 good = good + 1
             total = total +1
         precision.append(good/total)
-
-    print(precision)
+        print("Precision for training TF {0}: {1}".format(k, precision[k]))
 
 
 def write_results_file(results):
-    with open('results.csv', 'w') as res_file:
+    with open('Yte.csv', 'w') as res_file:
         writer = csv.writer(res_file)
         row = ['Id', 'Bound']
         writer.writerow(row)
@@ -144,16 +147,12 @@ def write_results_file(results):
                 writer.writerow(row)
                 id_res = id_res + 1
 
+        print("Test prediction written to Yte.csv")
+
 
 def run_krr():
     # Read the samples from the csv's
     x_entries, y_entries = read_matrix_training_files()
-    
-    #x = np.array(x_entries, dtype=np.float)
-    #y = np.array(y_entries, dtype=np.int)
-    
-    #print(x)
-    #print(y)
 
     print ("Number of classes:" + str(len(x_entries)))
     for k in range(len(x_entries)):
@@ -164,9 +163,6 @@ def run_krr():
     for k in range(3):
         weights.append(krr.regression(x_entries[k], y_entries[k]))
 
-    #print (weights)
-    
-
     # Verify training
     verify_training(x_entries, y_entries, weights)
 
@@ -175,8 +171,6 @@ def run_krr():
     f = []
     for k in range (3):
         f.append(krr.test(test_entries[k], weights[k]))
-
-    #print (f)
 
     # Getting the Bound/Unbound values
     test_res = []
@@ -190,18 +184,22 @@ def run_krr():
 
         test_res.append(k_res)
 
-    #print(test_res)
-    
-    
+
     write_results_file(test_res)
 
 
-def run_krr_la():
+def run_krr_la(max_nb_images):
     # Read the samples from the csv's
-    x_entries, y_entries = read_regular_training_files()
+    x_entries_all, y_entries_all = read_regular_training_files()
 
-    print ("Number of classes:" + str(len(x_entries)))
-    for k in range(len(x_entries)):
+    x_entries = []
+    y_entries = []
+
+    print ("Number of classes:" + str(len(x_entries_all)))
+    for k in range(len(x_entries_all)):
+        # Take out max_nb_images so that the computation is not too costly (will lose accuracy though)
+        x_entries.append(x_entries_all[k][:max_nb_images])
+        y_entries.append(y_entries_all[k][:max_nb_images])
         print ("Number of sequences for class " + str(k) + ": " + str(len(x_entries[k])))
 
     # Train the kernels
@@ -210,13 +208,13 @@ def run_krr_la():
         weights.append(krr.regression_la(x_entries[k], y_entries[k]))
 
     # Verify training
-    verify_training(x_entries, y_entries, weights)
+    verify_training(x_entries, y_entries, weights, isLa=True)
 
     # Test
     test_entries = read_regular_test_files()
     f = []
     for k in range(3):
-        f.append(krr.test(test_entries[k], weights[k]))
+        f.append(krr.test_la(test_entries[k], weights[k]))
 
     # Getting the Bound/Unbound values
     test_res = []
@@ -236,6 +234,7 @@ def run_krr_la():
 
 def main():
     run_krr()
+    #run_krr_la(100)
     
 
 if __name__== "__main__":
